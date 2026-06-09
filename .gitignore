@@ -9,12 +9,12 @@ local.properties
 *.log
 
 # Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
+#captures/
+#.externalNativeBuild/
+#.cxx/
+#*.aab
+#*.apk
+#output-metadata.json
 
 # IntelliJ
 *.iml
