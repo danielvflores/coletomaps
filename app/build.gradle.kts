@@ -47,11 +47,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
-<<<<<<< HEAD
     implementation ("com.google.android.gms:play-services-maps:19.2.0")
-=======
-
->>>>>>> dc61f58bdc809ff8196c791b35b11ad284131fb4
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
