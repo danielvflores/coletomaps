@@ -21,6 +21,9 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.Polyline
+import com.google.android.gms.maps.model.PolylineOptions
+import android.graphics.Color
 
 
 class MapFragment : Fragment(), OnMapReadyCallback {
@@ -31,7 +34,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private lateinit var locationCallback: LocationCallback
 
     private var currentMarker: Marker? = null
-
+    private var camaraInicializada = false
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 100
     }
@@ -68,6 +71,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
             mMap.isMyLocationEnabled = true
             startLocationUpdates()
+            cargarRutasDePrueba()
+
 
         } else {
 
@@ -103,12 +108,14 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                         .title("Mi ubicación")
                 )
 
-                mMap.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(
-                        currentPosition,
-                        17f
+                if(!camaraInicializada){
+                    mMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            currentPosition,
+                            17f
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -160,6 +167,28 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         if (::locationCallback.isInitialized) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         }
+    }
+
+    private fun mostrarRutaEnMapa(coordenadas: List<LatLng>, colorLinea: Int): Polyline {
+        val opcionesPolilinea = PolylineOptions()
+            .addAll(coordenadas) // Añade todos los puntos de la ruta de una
+            .color(colorLinea)   // Asigna el color (ej: azul, rojo)
+            .width(12f)          // Grosor de la línea en el mapa
+            .geodesic(true)      // Hace que la línea siga la curvatura de la tierra
+
+        return mMap.addPolyline(opcionesPolilinea)
+    }
+    private fun cargarRutasDePrueba() {
+        // Coordenadas simuladas para una línea de colectivo en Arica
+        val puntosLinea1 = listOf(
+            LatLng(-18.4746, -70.2979), // Centro / Plaza Colón
+            LatLng(-18.4772, -70.2995), // Patricio Lynch
+            LatLng(-18.4815, -70.3012), // Av. Vicuña Mackenna
+            LatLng(-18.4850, -70.2980)  // Cerca del Campus Velásquez / UTA
+        )
+
+        // Llamamos a nuestra funciónadora usando color Azul
+        mostrarRutaEnMapa(puntosLinea1, Color.BLUE)
     }
 
 
