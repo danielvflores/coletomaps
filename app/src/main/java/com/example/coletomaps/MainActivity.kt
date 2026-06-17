@@ -46,6 +46,34 @@ class MainActivity : AppCompatActivity() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+        //pruba de firebase
+        val estaConectado = com.example.coletomaps.ui.data.FirebaseManager.isUserLoggedIn()
+        if (!estaConectado) {
+            // Aquí en el futuro redireccionaremos a la pantalla de Login (HU01)
+            android.util.Log.d("ColetoMapsFirebase", "Firebase listo. No hay usuario activo todavía.")
+        }
+        //login
+        if (!com.example.coletomaps.ui.data.FirebaseManager.isUserLoggedIn()) {
+            navController.navigate(R.id.nav_login) // Asegúrate de agregar el id "nav_login" en mi_nav_graph.xml
+        }
+        navView.setNavigationItemSelectedListener { menuItem ->
+            if (menuItem.itemId == R.id.nav_logout) { // ID que puedes asignar en tu archivo de menú lateral
+                // 1. Cerramos sesión en Firebase de forma segura
+                com.example.coletomaps.ui.data.FirebaseManager.auth.signOut()
+
+                // 2. Redirigimos al Login
+                navController.navigate(R.id.nav_login)
+
+                // 3. Cerramos el panel lateral de la interfaz
+                drawerLayout.closeDrawers()
+                true
+            } else {
+                // Deja que el componente de navegación maneje los otros clics normales
+                val handled = androidx.navigation.ui.NavigationUI.onNavDestinationSelected(menuItem, navController)
+                if (handled) drawerLayout.closeDrawers()
+                handled
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
