@@ -38,7 +38,7 @@ class LoginFragment : Fragment() {
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             // Si es correcto, navegamos al Mapa (HU02)
-                            findNavController().navigate(R.id.nav_map)
+                            findNavController().navigate(R.id.nav_home)
                         } else {
                             Toast.makeText(requireContext(), "Error: Contraseña incorrecta o usuario no existe.", Toast.LENGTH_LONG).show()
                         }
@@ -56,7 +56,7 @@ class LoginFragment : Fragment() {
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             Toast.makeText(requireContext(), "¡Cuenta creada con éxito!", Toast.LENGTH_SHORT).show()
-                            findNavController().navigate(R.id.nav_map)
+                            findNavController().navigate(R.id.nav_home)
                         } else {
                             Toast.makeText(requireContext(), "Error al registrar: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                         }

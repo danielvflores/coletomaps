@@ -115,6 +115,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                             17f
                         )
                     )
+                    camaraInicializada = true
                 }
             }
         }
