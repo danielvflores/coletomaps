@@ -28,10 +28,24 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.appBarMain.toolbar)
 
+
         binding.appBarMain.fab.setOnClickListener { view ->
-            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+            /*Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                 .setAction("Action", null)
-                .setAnchorView(R.id.fab).show()
+                .setAnchorView(R.id.fab).show()*/
+            // 1. Obtenemos el NavHostFragment usando el ID del contenedor
+            val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main)
+            val fragmentoActual = navHostFragment?.childFragmentManager?.primaryNavigationFragment
+
+            if (fragmentoActual is com.example.coletomaps.ui.MapFragment.MapFragment) {
+                fragmentoActual.alternarVisibilidadRutas()
+
+                Snackbar.make(view, "Cambiando visualización de recorridos", Snackbar.LENGTH_SHORT)
+                    .setAnchorView(R.id.fab).show()
+            } else {
+                Snackbar.make(view, "Abre la pantalla del mapa primero", Snackbar.LENGTH_SHORT)
+                    .setAnchorView(R.id.fab).show()
+            }
         }
         val drawerLayout: DrawerLayout = binding.drawerLayout
         val navView: NavigationView = binding.navView
