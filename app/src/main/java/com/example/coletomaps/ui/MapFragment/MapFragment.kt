@@ -19,13 +19,15 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.Polyline
 import com.google.android.gms.maps.model.PolylineOptions
 import androidx.annotation.RequiresPermission
+import android.widget.ArrayAdapter
+import android.widget.ListView
+import androidx.appcompat.widget.SearchView
 
 data class RutaLocal(
     val nombre: String,
@@ -39,6 +41,9 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
 
+    // Uso de MapView dinámico para acoplarse al XML
+    private lateinit var mapView: com.google.android.gms.maps.MapView
+
     private var currentMarker: Marker? = null
     private var camaraInicializada = false
 
@@ -46,6 +51,11 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
     private var rutasVisibles = false
     private val listaPolilineas = mutableListOf<Polyline>()
     private var rutaSeleccionada: Polyline? = null
+
+    private lateinit var searchViewRutas: SearchView
+    private lateinit var listViewSugerencias: ListView
+    private lateinit var adapterSugerencias: ArrayAdapter<String>
+    private var nombresRutas = mutableListOf<String>()
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 100
@@ -55,28 +65,38 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.frament_map, container, false)
+        // SOLUCIÓN: Inflamos el layout correcto que contiene el buscador y el mapa
+        return inflater.inflate(R.layout.fragment_home, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
-        val mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
-        mapFragment.getMapAsync(this)
+
+        // Enlazar componentes del buscador
+        searchViewRutas = view.findViewById(R.id.searchViewRutas)
+        listViewSugerencias = view.findViewById(R.id.listViewSugerencias)
+
+        // Inicializar el mapa integrado de forma segura
+        mapView = view.findViewById(R.id.map)
+        mapView.onCreate(savedInstanceState)
+        mapView.getMapAsync(this)
+
+        configurarBuscador()
     }
 
     @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        // Asignamos los listeners del mapa
         mMap.setOnPolylineClickListener(this)
 
-        // SOLUCIÓN: Si toca el mapa (en el vacío), restablecemos el estado visual de las rutas
         mMap.setOnMapClickListener {
             if (rutaSeleccionada != null) {
                 restablecerRutas()
             }
+            listViewSugerencias.visibility = View.GONE
+            searchViewRutas.clearFocus()
         }
 
         if (ActivityCompat.checkSelfPermission(
@@ -141,11 +161,28 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         }
     }
 
+    // Métodos obligatorios requeridos por el ciclo de vida del MapView
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
     override fun onPause() {
         super.onPause()
+        mapView.onPause()
         if (::locationCallback.isInitialized) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mapView.onDestroy()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
     }
 
     // --- LOGICA LOCAL DE COLECTIVOS ---
@@ -201,10 +238,11 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
             }
         } else {
             removerRutasDelMapa()
+            searchViewRutas.setQuery("", false)
+            listViewSugerencias.visibility = View.GONE
         }
     }
 
-    // CORRECCIÓN: Ajustados los parámetros para recibir el objeto 'RutaLocal' completo
     private fun mostrarRutaEnMapa(ruta: RutaLocal, colorLinea: Int): Polyline {
         val opcionesPolilinea = PolylineOptions()
             .addAll(ruta.puntos)
@@ -214,7 +252,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
 
         val polilinea = mMap.addPolyline(opcionesPolilinea)
         polilinea.isClickable = true
-        polilinea.tag = ruta // Vinculamos los datos de la ruta a la polínea
+        polilinea.tag = ruta
         return polilinea
     }
 
@@ -230,16 +268,14 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         val rutaInfo = polylineClicked.tag as? RutaLocal ?: return
 
         if (rutaSeleccionada == polylineClicked) {
-            // Si presionas la misma que ya estaba resaltada, vuelve al estado normal
             restablecerRutas()
         } else {
             rutaSeleccionada = polylineClicked
 
-            // Resaltamos la seleccionada y ocultamos visualmente las demás
             for (polyline in listaPolilineas) {
                 if (polyline == polylineClicked) {
                     polyline.isVisible = true
-                    polyline.width = 24f // Grosor extra para el resalte
+                    polyline.width = 24f
                 } else {
                     polyline.isVisible = false
                 }
@@ -252,8 +288,9 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         rutaSeleccionada = null
         for (polyline in listaPolilineas) {
             polyline.isVisible = true
-            polyline.width = 12f // Restauramos el grosor original de todas
+            polyline.width = 12f
         }
+        searchViewRutas.setQuery("", false)
     }
 
     private fun mostrarPopUpInformativo(ruta: RutaLocal) {
@@ -264,9 +301,66 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
                 dialog.dismiss()
             }
             .setOnCancelListener {
-                // Al tocar fuera del diálogo/pop-up, también restablecemos el mapa de forma fluida
                 restablecerRutas()
             }
             .show()
+    }
+
+    private fun configurarBuscador() {
+        val rutas = obtenerRutasLocales()
+        nombresRutas = rutas.map { it.nombre }.toMutableList()
+
+        adapterSugerencias = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_list_item_1,
+            nombresRutas
+        )
+        listViewSugerencias.adapter = adapterSugerencias
+
+        searchViewRutas.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                searchViewRutas.clearFocus()
+                return false
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                if (!newText.isNullOrEmpty()) {
+                    adapterSugerencias.filter.filter(newText)
+                    listViewSugerencias.visibility = View.VISIBLE
+                } else {
+                    listViewSugerencias.visibility = View.GONE
+                }
+                return true
+            }
+        })
+
+        listViewSugerencias.setOnItemClickListener { parent, _, position, _ ->
+            val nombreSeleccionado = parent.getItemAtPosition(position) as String
+            searchViewRutas.setQuery(nombreSeleccionado, false)
+            listViewSugerencias.visibility = View.GONE
+            searchViewRutas.clearFocus()
+
+            seleccionarRutaPorNombre(nombreSeleccionado)
+        }
+    }
+
+    private fun seleccionarRutaPorNombre(nombre: String) {
+        if (!rutasVisibles) {
+            alternarVisibilidadRutas()
+        }
+
+        val polilineaEncontrada = listaPolilineas.find {
+            val info = it.tag as? RutaLocal
+            info?.nombre == nombre
+        }
+
+        if (polilineaEncontrada != null) {
+            onPolylineClick(polilineaEncontrada)
+
+            val infoRuta = polilineaEncontrada.tag as? RutaLocal
+            infoRuta?.puntos?.firstOrNull()?.let { primerPunto ->
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(primerPunto, 15f))
+            }
+        }
     }
 }
