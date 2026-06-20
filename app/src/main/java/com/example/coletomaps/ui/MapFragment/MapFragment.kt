@@ -27,14 +27,13 @@ import com.google.android.gms.maps.model.Polyline
 import com.google.android.gms.maps.model.PolylineOptions
 import androidx.annotation.RequiresPermission
 
-// Estructura simple para modelar tus líneas locales
 data class RutaLocal(
     val nombre: String,
     val colorHex: String,
     val puntos: List<LatLng>
 )
 
-class MapFragment : Fragment(), OnMapReadyCallback {
+class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickListener {
 
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -46,6 +45,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     // Control de estado de las rutas fijas
     private var rutasVisibles = false
     private val listaPolilineas = mutableListOf<Polyline>()
+    private var rutaSeleccionada: Polyline? = null
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 100
@@ -68,6 +68,16 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+
+        // Asignamos los listeners del mapa
+        mMap.setOnPolylineClickListener(this)
+
+        // SOLUCIÓN: Si toca el mapa (en el vacío), restablecemos el estado visual de las rutas
+        mMap.setOnMapClickListener {
+            if (rutaSeleccionada != null) {
+                restablecerRutas()
+            }
+        }
 
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
@@ -115,18 +125,14 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE &&
-            grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
+            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
             if (ActivityCompat.checkSelfPermission(
-                    requireContext(),
-                    Manifest.permission.ACCESS_FINE_LOCATION
+                    requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
                 mMap.isMyLocationEnabled = true
@@ -144,12 +150,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
     // --- LOGICA LOCAL DE COLECTIVOS ---
 
-    // Definición de tus 3 arreglos de rutas fijas directamente en el código
     private fun obtenerRutasLocales(): List<RutaLocal> {
         return listOf(
             RutaLocal(
                 nombre = "Línea 1 - Centro / UTA",
-                colorHex = "#0000FF", // Azul
+                colorHex = "#0000FF",
                 puntos = listOf(
                     LatLng(-18.4746, -70.2979),
                     LatLng(-18.4772, -70.2995),
@@ -159,7 +164,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             ),
             RutaLocal(
                 nombre = "Línea 2 - Diego Portales / Chinchorro",
-                colorHex = "#FF0000", // Rojo
+                colorHex = "#FF0000",
                 puntos = listOf(
                     LatLng(-18.4746, -70.2979),
                     LatLng(-18.4650, -70.2950),
@@ -169,7 +174,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             ),
             RutaLocal(
                 nombre = "Línea 3 - Saucache / Rotonda",
-                colorHex = "#00FF00", // Verde
+                colorHex = "#00FF00",
                 puntos = listOf(
                     LatLng(-18.4746, -70.2979),
                     LatLng(-18.4820, -70.2890),
@@ -184,7 +189,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         rutasVisibles = !rutasVisibles
 
         if (rutasVisibles) {
-            // Muestra instantáneamente los datos de los arreglos locales
             val lineasArica = obtenerRutasLocales()
             for (ruta in lineasArica) {
                 val colorParseado = try {
@@ -192,24 +196,26 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 } catch (e: Exception) {
                     Color.BLUE
                 }
-
-                val polilinea = mostrarRutaEnMapa(ruta.puntos, colorParseado)
+                val polilinea = mostrarRutaEnMapa(ruta, colorParseado)
                 listaPolilineas.add(polilinea)
             }
         } else {
-            // Remueve las políneas locales
             removerRutasDelMapa()
         }
     }
 
-    private fun mostrarRutaEnMapa(coordenadas: List<LatLng>, colorLinea: Int): Polyline {
+    // CORRECCIÓN: Ajustados los parámetros para recibir el objeto 'RutaLocal' completo
+    private fun mostrarRutaEnMapa(ruta: RutaLocal, colorLinea: Int): Polyline {
         val opcionesPolilinea = PolylineOptions()
-            .addAll(coordenadas)
+            .addAll(ruta.puntos)
             .color(colorLinea)
             .width(12f)
             .geodesic(true)
 
-        return mMap.addPolyline(opcionesPolilinea)
+        val polilinea = mMap.addPolyline(opcionesPolilinea)
+        polilinea.isClickable = true
+        polilinea.tag = ruta // Vinculamos los datos de la ruta a la polínea
+        return polilinea
     }
 
     private fun removerRutasDelMapa() {
@@ -217,5 +223,50 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             polilinea.remove()
         }
         listaPolilineas.clear()
+        rutaSeleccionada = null
+    }
+
+    override fun onPolylineClick(polylineClicked: Polyline) {
+        val rutaInfo = polylineClicked.tag as? RutaLocal ?: return
+
+        if (rutaSeleccionada == polylineClicked) {
+            // Si presionas la misma que ya estaba resaltada, vuelve al estado normal
+            restablecerRutas()
+        } else {
+            rutaSeleccionada = polylineClicked
+
+            // Resaltamos la seleccionada y ocultamos visualmente las demás
+            for (polyline in listaPolilineas) {
+                if (polyline == polylineClicked) {
+                    polyline.isVisible = true
+                    polyline.width = 24f // Grosor extra para el resalte
+                } else {
+                    polyline.isVisible = false
+                }
+            }
+            mostrarPopUpInformativo(rutaInfo)
+        }
+    }
+
+    private fun restablecerRutas() {
+        rutaSeleccionada = null
+        for (polyline in listaPolilineas) {
+            polyline.isVisible = true
+            polyline.width = 12f // Restauramos el grosor original de todas
+        }
+    }
+
+    private fun mostrarPopUpInformativo(ruta: RutaLocal) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(ruta.nombre)
+            .setMessage("Has seleccionado la ruta fija de transporte colectivo.\n\nCódigo de color: ${ruta.colorHex}")
+            .setPositiveButton("Entendido") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setOnCancelListener {
+                // Al tocar fuera del diálogo/pop-up, también restablecemos el mapa de forma fluida
+                restablecerRutas()
+            }
+            .show()
     }
 }
