@@ -37,12 +37,8 @@ class LoginFragment : Fragment() {
                 FirebaseManager.auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            findNavController().navigate(R.id.nav_home) {
-                                popUpTo(R.id.nav_login) {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
-                            }
+                            // Si es correcto, navegamos al Mapa (HU02)
+                            findNavController().navigate(R.id.nav_home)
                         } else {
                             Toast.makeText(requireContext(), "Error: Contraseña incorrecta o usuario no existe.", Toast.LENGTH_LONG).show()
                         }
@@ -60,13 +56,7 @@ class LoginFragment : Fragment() {
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             Toast.makeText(requireContext(), "¡Cuenta creada con éxito!", Toast.LENGTH_SHORT).show()
-
-                            findNavController().navigate(R.id.nav_home) {
-                                popUpTo(R.id.nav_login) {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
-                            }
+                            findNavController().navigate(R.id.nav_home)
                         } else {
                             Toast.makeText(requireContext(), "Error al registrar: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                         }

@@ -68,12 +68,7 @@ class MainActivity : AppCompatActivity() {
         }
         //login
         if (!com.example.coletomaps.ui.data.FirebaseManager.isUserLoggedIn()) {
-            navController.navigate(R.id.nav_login) {
-                popUpTo(0) {
-                    inclusive = true
-                }
-                launchSingleTop = true
-            }
+            navController.navigate(R.id.nav_login) // Asegúrate de agregar el id "nav_login" en mi_nav_graph.xml
         }
         navView.setNavigationItemSelectedListener { menuItem ->
             if (menuItem.itemId == R.id.nav_logout) { // ID que puedes asignar en tu archivo de menú lateral
