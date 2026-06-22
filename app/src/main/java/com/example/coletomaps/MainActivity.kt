@@ -2,6 +2,7 @@ package com.example.coletomaps
 
 import android.os.Bundle
 import android.view.Menu
+import android.view.View
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.navigation.NavigationView
 import androidx.navigation.findNavController
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setSupportActionBar(binding.appBarMain.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
 
         binding.appBarMain.fab.setOnClickListener { view ->
@@ -88,6 +90,20 @@ class MainActivity : AppCompatActivity() {
                 handled
             }
         }
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            // Buscamos el buscador dentro de la Toolbar
+            val searchView = binding.appBarMain.toolbar.findViewById<androidx.appcompat.widget.SearchView>(R.layout.app_bar_main)
+                ?: findViewById(R.id.searchViewRutas)
+
+            if (destination.id == R.id.nav_home) {
+                // Si el usuario está en el mapa (Home), mostramos la barra de búsqueda
+                searchView?.visibility = View.VISIBLE
+            } else {
+                // Si navega a cualquier otra pantalla (Galería, Ajustes, etc.), la ocultamos
+                searchView?.visibility = View.GONE
+            }
+        }
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

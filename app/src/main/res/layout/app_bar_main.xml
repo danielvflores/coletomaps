@@ -16,7 +16,28 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
-            app:popupTheme="@style/Theme.Coletomaps.PopupOverlay" />
+            app:popupTheme="@style/Theme.Coletomaps.PopupOverlay"
+            app:title="">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:paddingEnd="16dp"
+                android:orientation="horizontal">
+
+                <androidx.appcompat.widget.SearchView
+                    android:id="@+id/searchViewRutas"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:iconifiedByDefault="false"
+                    android:background="@color/white"
+                    app:theme="@style/Theme.AppCompat.Light"
+                    app:queryHint="Buscar línea o recorrido..."
+                    app:queryBackground="@android:color/transparent" />
+            </LinearLayout>
+
+        </androidx.appcompat.widget.Toolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 

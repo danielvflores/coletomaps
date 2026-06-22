@@ -40,14 +40,11 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
-
-    // Uso de MapView dinámico para acoplarse al XML
     private lateinit var mapView: com.google.android.gms.maps.MapView
 
     private var currentMarker: Marker? = null
     private var camaraInicializada = false
 
-    // Control de estado de las rutas fijas
     private var rutasVisibles = false
     private val listaPolilineas = mutableListOf<Polyline>()
     private var rutaSeleccionada: Polyline? = null
@@ -65,7 +62,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // SOLUCIÓN: Inflamos el layout correcto que contiene el buscador y el mapa
         return inflater.inflate(R.layout.fragment_home, container, false)
     }
 
@@ -73,22 +69,28 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         super.onViewCreated(view, savedInstanceState)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
 
-        // Enlazar componentes del buscador
-        searchViewRutas = view.findViewById(R.id.searchViewRutas)
+        // Enlazar componentes del fragmento local
         listViewSugerencias = view.findViewById(R.id.listViewSugerencias)
 
         // Inicializar el mapa integrado de forma segura
         mapView = view.findViewById(R.id.map)
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync(this)
+    }
 
-        configurarBuscador()
+    override fun onStart() {
+        super.onStart()
+        // Buscamos el SearchView de forma segura en la barra superior de la Activity
+        val viewBuscador = requireActivity().findViewById<SearchView>(R.id.searchViewRutas)
+        if (viewBuscador != null && viewBuscador.visibility == View.VISIBLE) {
+            searchViewRutas = viewBuscador
+            configurarBuscador()
+        }
     }
 
     @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-
         mMap.setOnPolylineClickListener(this)
 
         mMap.setOnMapClickListener {
@@ -96,7 +98,9 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
                 restablecerRutas()
             }
             listViewSugerencias.visibility = View.GONE
-            searchViewRutas.clearFocus()
+            if (::searchViewRutas.isInitialized) {
+                searchViewRutas.clearFocus()
+            }
         }
 
         if (ActivityCompat.checkSelfPermission(
@@ -161,7 +165,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         }
     }
 
-    // Métodos obligatorios requeridos por el ciclo de vida del MapView
     override fun onResume() {
         super.onResume()
         mapView.onResume()
@@ -185,7 +188,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         mapView.onLowMemory()
     }
 
-    // --- LOGICA LOCAL DE COLECTIVOS ---
+    // --- LÓGICA LOCAL DE COLECTIVOS ---
 
     private fun obtenerRutasLocales(): List<RutaLocal> {
         return listOf(
@@ -241,7 +244,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
                     LatLng(-18.4968652, -70.3049213),
                     LatLng(-18.5003115, -70.308806)
                 )
-
             ),
             RutaLocal(
                 nombre = "Línea U - Edmundo Flores / 18 de Septiembre / Centro",
@@ -294,6 +296,8 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
     }
 
     fun alternarVisibilidadRutas() {
+        if (!::searchViewRutas.isInitialized) return
+
         rutasVisibles = !rutasVisibles
 
         if (rutasVisibles) {
@@ -361,7 +365,9 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
             polyline.isVisible = true
             polyline.width = 12f
         }
-        searchViewRutas.setQuery("", false)
+        if (::searchViewRutas.isInitialized) {
+            searchViewRutas.setQuery("", false)
+        }
     }
 
     private fun mostrarPopUpInformativo(ruta: RutaLocal) {
@@ -434,4 +440,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
             }
         }
     }
+
+
 }
