@@ -90,10 +90,10 @@ class MainActivity : AppCompatActivity() {
 
             if (fragmentoActual is com.example.coletomaps.ui.MapFragment.MapFragment) {
                 fragmentoActual.alternarVisibilidadRutas()
-                Snackbar.make(view, "Cambiando visualización de recorridos", Snackbar.LENGTH_SHORT)
-                    .setAnchorView(R.id.fab).show()
+                //Snackbar.make(view, "Rutas Colectivos", Snackbar.LENGTH_SHORT)
+                  //  .setAnchorView(R.id.fab).show()
             } else {
-                Snackbar.make(view, "Abre la pantalla del mapa primero", Snackbar.LENGTH_SHORT)
+                Snackbar.make(view, "Vuelve a la pantalla home", Snackbar.LENGTH_SHORT)
                     .setAnchorView(R.id.fab).show()
             }
         }
