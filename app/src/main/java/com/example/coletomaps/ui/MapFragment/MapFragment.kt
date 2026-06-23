@@ -374,7 +374,12 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         val rutas = obtenerRutasLocales()
         nombresRutas = rutas.map { "${it.nombre} \n(${it.callesRecorrido})" }.toMutableList()
 
-        adapterSugerencias = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, nombresRutas)
+        adapterSugerencias = ArrayAdapter(
+            requireContext(),
+            R.layout.item_ruta,
+            R.id.textRuta,
+            nombresRutas
+        )
         listViewSugerencias.adapter = adapterSugerencias
 
         searchViewRutas.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
