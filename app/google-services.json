@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "53619369823",
+    "project_id": "coletomaps-7bda4",
+    "storage_bucket": "coletomaps-7bda4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:53619369823:android:8c5f010ecc91397379f8ea",
+        "android_client_info": {
+          "package_name": "com.example.coletomaps"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQjVnwA8epJIR1ybwRpReHAf7ay3VfGKM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
