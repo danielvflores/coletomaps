@@ -73,6 +73,8 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
     private lateinit var txtTarde: TextView
     private lateinit var txtNoche: TextView
     private lateinit var txtRecorrido: TextView
+    private val listaMarcadoresReportes = mutableListOf<Marker>()
+    private var reportesVisibles = false
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 100
@@ -99,6 +101,11 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         txtTarde = view.findViewById(R.id.txtTarde)
         txtNoche = view.findViewById(R.id.txtNoche)
         txtRecorrido = view.findViewById(R.id.txtRecorrido)
+        val fabReportes = (activity as? com.example.coletomaps.MainActivity)?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabReportes)
+
+        fabReportes?.setOnClickListener {
+            alternarVisibilidadReportes()
+        }
 
         mapView = view.findViewById(R.id.map)
         mapView.onCreate(savedInstanceState)
@@ -125,6 +132,18 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         )
         mMap.setLatLngBoundsForCameraTarget(limitesArica)
         mMap.setMinZoomPreference(12.0f)
+
+        mMap?.setOnMarkerClickListener { marker ->
+            val reporteId = marker.tag as? String
+
+            // Si el marcador tiene un ID de reporte asignado, lanzamos la validación
+            if (reporteId != null) {
+                mostrarDialogoValidacionComunitaria(reporteId, marker.title ?: "Incidente")
+                true // Indica que nosotros manejamos el clic
+            } else {
+                false // Deja que Google Maps maneje marcadores normales de la app
+            }
+        }
 
         // SOLUCIÓN 2: Si volvemos de otra pantalla y tenemos la última posición guardada, centramos de inmediato
         if (ultimaPosicionGPS != null) {
@@ -437,6 +456,115 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
             infoRuta?.puntos?.firstOrNull()?.let { primerPunto ->
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(primerPunto, 15f))
             }
+        }
+    }
+    private fun alternarVisibilidadReportes() {
+        reportesVisibles = !reportesVisibles
+        if (reportesVisibles) {
+            escucharReportesEnTiempoReal()
+            android.widget.Toast.makeText(requireContext(), "Mostrando reportes comunitarios", android.widget.Toast.LENGTH_SHORT).show()
+        } else {
+            limpiarMarcadoresReportes()
+            android.widget.Toast.makeText(requireContext(), "Reportes ocultados", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun escucharReportesEnTiempoReal() {
+        // Limpiamos los marcadores previos para no duplicar
+        limpiarMarcadoresReportes()
+
+        com.example.coletomaps.ui.data.FirebaseManager.db.collection("reportes")
+            .whereEqualTo("activo", true)
+            .addSnapshotListener { snapshots, e ->
+                if (e != null || snapshots == null) return@addSnapshotListener
+
+                // Cada vez que cambie algo en la base de datos, refrescamos los marcadores
+                limpiarMarcadoresReportes()
+
+                for (document in snapshots) {
+                    val id = document.getString("id") ?: ""
+                    val tipo = document.getString("tipoIncidente") ?: ""
+                    val lat = document.getDouble("latitud") ?: 0.0
+                    val lng = document.getDouble("longitud") ?: 0.0
+                    val hora = document.getString("hora") ?: ""
+                    val votosPos = document.getLong("votosPositivos")?.toInt() ?: 0
+                    val votosNeg = document.getLong("votosNegativos")?.toInt() ?: 0
+
+                    val posicion = LatLng(lat, lng)
+
+                    // Definir el tono del marcador según el tipo de reporte usando Hue de Google Maps
+                    val colorHue = when (tipo.lowercase()) {
+                        "incendio" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_ORANGE
+                        "congestión" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_VIOLET
+                        "corte de calle" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
+                        else -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED // accidente vehicular
+                    }
+
+                    val markerOptions = MarkerOptions()
+                        .position(posicion)
+                        .title(tipo.uppercase())
+                        .snippet("Hora: $hora | Votos: +$votosPos / -$votosNeg")
+                        .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(colorHue))
+
+                    val marker = mMap?.addMarker(markerOptions)
+                    if (marker != null) {
+                        // Guardamos el ID del documento de Firestore en el tag del marcador para saber cuál es al hacer clic
+                        marker.tag = id
+                        listaMarcadoresReportes.add(marker)
+                    }
+                }
+            }
+    }
+
+    private fun limpiarMarcadoresReportes() {
+        for (marker in listaMarcadoresReportes) {
+            marker.remove()
+        }
+        listaMarcadoresReportes.clear()
+    }
+    private fun mostrarDialogoValidacionComunitaria(reporteId: String, tipoIncidente: String) {
+        val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+        builder.setTitle("Validación Comunitaria")
+        builder.setMessage("¿Sigue el $tipoIncidente activo en este lugar?")
+
+        // Botón SÍ: Suma un voto positivo
+        builder.setPositiveButton("SÍ, SIGUE") { dialog, _ ->
+            actualizarVotosReporte(reporteId, esPositivo = true)
+            dialog.dismiss()
+        }
+
+        // Botón NO: Suma un voto negativo
+        builder.setNegativeButton("NO, YA PASÓ") { dialog, _ ->
+            actualizarVotosReporte(reporteId, esPositivo = false)
+            dialog.dismiss()
+        }
+
+        builder.create().show()
+    }
+
+    private fun actualizarVotosReporte(reporteId: String, esPositivo: Boolean) {
+        val docRef = com.example.coletomaps.ui.data.FirebaseManager.db.collection("reportes").document(reporteId)
+
+        com.example.coletomaps.ui.data.FirebaseManager.db.runTransaction { transaction ->
+            val snapshot = transaction.get(docRef)
+            val votosPos = snapshot.getLong("votosPositivos") ?: 0
+            val votosNeg = snapshot.getLong("votosNegativos") ?: 0
+
+            if (esPositivo) {
+                transaction.update(docRef, "votosPositivos", votosPos + 1)
+            } else {
+                val nuevosVotosNeg = votosNeg + 1
+                transaction.update(docRef, "votosNegativos", nuevosVotosNeg)
+
+                // Regla de negocio: si acumula 3 o más votos negativos, se baja del mapa de forma automática
+                if (nuevosVotosNeg >= 3) {
+                    transaction.update(docRef, "activo", false)
+                }
+            }
+        }.addOnSuccessListener {
+            android.widget.Toast.makeText(requireContext(), "¡Gracias por reportar y cooperar!", android.widget.Toast.LENGTH_SHORT).show()
+        }.addOnFailureListener { e ->
+            android.widget.Toast.makeText(requireContext(), "Error al validar: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -11,3 +11,14 @@ data class LineaColectivo(
     val rutaIda: List<LatLng>, // Lista de coordenadas que forman el camino de ida
     val rutaVuelta: List<LatLng> // Lista de coordenadas de vuelta
 )
+// Modelo para los reportes comunitarios en el mapa
+data class ReporteIncidente(
+    val id: String = "",
+    val tipoIncidente: String = "",  // "incendio", "congestión", "accidente vehicular", "corte"
+    val latitud: Double = 0.0,
+    val longitud: Double = 0.0,
+    val hora: String = "",           // hh:mm
+    val votosPositivos: Int = 0,
+    val votosNegativos: Int = 0,
+    val activo: Boolean = true
+)
