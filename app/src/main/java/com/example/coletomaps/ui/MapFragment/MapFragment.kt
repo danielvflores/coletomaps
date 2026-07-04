@@ -482,33 +482,36 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
                 limpiarMarcadoresReportes()
 
                 for (document in snapshots) {
+                    // Modifica la lectura dentro del bucle 'for (document in snapshots)' en escucharReportesEnTiempoReal:
                     val id = document.getString("id") ?: ""
                     val tipo = document.getString("tipoIncidente") ?: ""
                     val lat = document.getDouble("latitud") ?: 0.0
                     val lng = document.getDouble("longitud") ?: 0.0
                     val hora = document.getString("hora") ?: ""
+                    val descripcion = document.getString("descripcion") ?: ""
                     val votosPos = document.getLong("votosPositivos")?.toInt() ?: 0
                     val votosNeg = document.getLong("votosNegativos")?.toInt() ?: 0
+                    // Extraemos la lista de IDs de usuarios que ya votaron
+                    val usuariosVotantes = document.get("usuariosVotantes") as? List<String> ?: emptyList()
 
                     val posicion = LatLng(lat, lng)
 
-                    // Definir el tono del marcador según el tipo de reporte usando Hue de Google Maps
                     val colorHue = when (tipo.lowercase()) {
                         "incendio" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_ORANGE
                         "congestión" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_VIOLET
                         "corte de calle" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
-                        else -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED // accidente vehicular
+                        else -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED
                     }
 
                     val markerOptions = MarkerOptions()
                         .position(posicion)
                         .title(tipo.uppercase())
-                        .snippet("Hora: $hora | Votos: +$votosPos / -$votosNeg")
+                        // Agregamos la descripción al snippet del marcador para que se visualice al tocarlo
+                        .snippet(if (descripcion.isNotEmpty()) "$descripcion\nHora: $hora" else "Hora: $hora")
                         .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(colorHue))
 
                     val marker = mMap?.addMarker(markerOptions)
                     if (marker != null) {
-                        // Guardamos el ID del documento de Firestore en el tag del marcador para saber cuál es al hacer clic
                         marker.tag = id
                         listaMarcadoresReportes.add(marker)
                     }
@@ -523,48 +526,107 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         listaMarcadoresReportes.clear()
     }
     private fun mostrarDialogoValidacionComunitaria(reporteId: String, tipoIncidente: String) {
-        val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
-        builder.setTitle("Validación Comunitaria")
-        builder.setMessage("¿Sigue el $tipoIncidente activo en este lugar?")
+        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
+        val docRef = com.example.coletomaps.ui.data.FirebaseManager.db.collection("reportes").document(reporteId)
 
-        // Botón SÍ: Suma un voto positivo
-        builder.setPositiveButton("SÍ, SIGUE") { dialog, _ ->
-            actualizarVotosReporte(reporteId, esPositivo = true)
-            dialog.dismiss()
+        docRef.get().addOnSuccessListener { document ->
+            if (!document.exists()) return@addOnSuccessListener
+
+            val latReporte = document.getDouble("latitud") ?: 0.0
+            val lngReporte = document.getDouble("longitud") ?: 0.0
+            val usuariosVotantes = document.get("usuariosVotantes") as? List<String> ?: emptyList()
+            val descripcion = document.getString("descripcion") ?: ""
+
+            // 1. VALIDACIÓN DE VOTO ÚNICO
+            if (usuariosVotantes.contains(currentUserId)) {
+                android.widget.Toast.makeText(requireContext(), "Ya emitiste tu voto para este reporte", android.widget.Toast.LENGTH_SHORT).show()
+                return@addOnSuccessListener
+            }
+
+            // 2. VALIDACIÓN DE GEOFENCING (200 METROS)
+            // Obtenemos la última ubicación conocida del usuario mapeada en tu fragmento (mLastLocation o similar)
+            // Si no tienes la variable global de ubicación, puedes usar mMap?.myLocation si está habilitado
+            val miUbicacionActual = mMap?.myLocation
+
+            if (miUbicacionActual != null) {
+                val resultadoDistancia = FloatArray(1)
+                android.location.Location.distanceBetween(
+                    miUbicacionActual.latitude, miUbicacionActual.longitude,
+                    latReporte, lngReporte,
+                    resultadoDistancia
+                )
+                val distanciaMetros = resultadoDistancia[0]
+
+                if (distanciaMetros > 200f) {
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        "Estás muy lejos (${distanciaMetros.toInt()}m). Debes estar a menos de 200 metros para validar.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return@addOnSuccessListener
+                }
+            } else {
+                android.widget.Toast.makeText(requireContext(), "No se pudo verificar tu ubicación actual GPS", android.widget.Toast.LENGTH_SHORT).show()
+                return@addOnSuccessListener
+            }
+
+            // 3. MOSTRAR DIÁLOGO SI PASA LAS VALIDACIONES
+            val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            builder.setTitle("Validación Comunitaria")
+
+            val mensajeMostrar = if (descripcion.isNotEmpty()) {
+                "Detalle: $descripcion\n\n¿Sigue el $tipoIncidente activo en este lugar?"
+            } else {
+                "¿Sigue el $tipoIncidente activo en este lugar?"
+            }
+            builder.setMessage(mensajeMostrar)
+
+            builder.setPositiveButton("SÍ, SIGUE") { dialog, _ ->
+                actualizarVotosReporte(reporteId, currentUserId, esPositivo = true)
+                dialog.dismiss()
+            }
+
+            builder.setNegativeButton("NO, YA PASÓ") { dialog, _ ->
+                actualizarVotosReporte(reporteId, currentUserId, esPositivo = false)
+                dialog.dismiss()
+            }
+
+            builder.create().show()
+        }.addOnFailureListener { e ->
+            android.widget.Toast.makeText(requireContext(), "Error al conectar con Firestore: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
-
-        // Botón NO: Suma un voto negativo
-        builder.setNegativeButton("NO, YA PASÓ") { dialog, _ ->
-            actualizarVotosReporte(reporteId, esPositivo = false)
-            dialog.dismiss()
-        }
-
-        builder.create().show()
     }
 
-    private fun actualizarVotosReporte(reporteId: String, esPositivo: Boolean) {
+    private fun actualizarVotosReporte(reporteId: String, userId: String, esPositivo: Boolean) {
         val docRef = com.example.coletomaps.ui.data.FirebaseManager.db.collection("reportes").document(reporteId)
 
         com.example.coletomaps.ui.data.FirebaseManager.db.runTransaction { transaction ->
             val snapshot = transaction.get(docRef)
             val votosPos = snapshot.getLong("votosPositivos") ?: 0
             val votosNeg = snapshot.getLong("votosNegativos") ?: 0
+            val votantes = snapshot.get("usuariosVotantes") as? List<String> ?: emptyList()
+
+            // Creamos una nueva lista mutable añadiendo al usuario actual para bloquearlo en el futuro
+            val nuevosVotantes = votantes.toMutableList()
+            nuevosVotantes.add(userId)
+
+            transaction.update(docRef, "usuariosVotantes", nuevosVotantes)
 
             if (esPositivo) {
                 transaction.update(docRef, "votosPositivos", votosPos + 1)
             } else {
-                val nuevosVotosNeg = votosNeg + 1
-                transaction.update(docRef, "votosNegativos", nuevosVotosNeg)
+                val nuevosVotantesNeg = votosNeg + 1
+                transaction.update(docRef, "votosNegativos", nuevosVotantesNeg)
 
-                // Regla de negocio: si acumula 3 o más votos negativos, se baja del mapa de forma automática
-                if (nuevosVotosNeg >= 3) {
+                // Regla comunitaria: si acumula 3 o más votos negativos, se oculta automáticamente
+                if (nuevosVotantesNeg >= 3) {
                     transaction.update(docRef, "activo", false)
                 }
             }
         }.addOnSuccessListener {
-            android.widget.Toast.makeText(requireContext(), "¡Gracias por reportar y cooperar!", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(requireContext(), "¡Voto registrado! Gracias por cooperar", android.widget.Toast.LENGTH_SHORT).show()
         }.addOnFailureListener { e ->
-            android.widget.Toast.makeText(requireContext(), "Error al validar: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(requireContext(), "Error al procesar el voto: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }
