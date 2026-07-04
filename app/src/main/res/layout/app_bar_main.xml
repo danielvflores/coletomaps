@@ -44,6 +44,34 @@
     <include layout="@layout/content_main" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabReportar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="170dp"
+        android:contentDescription="Reportar accidente"
+        app:backgroundTint="#8BC34A"
+        app:srcCompat="@drawable/ic_reportar"
+        app:tint="@android:color/black"
+        app:fabCustomSize="48dp"
+        app:maxImageSize="28dp"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabReportes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="110dp"
+        android:contentDescription="Ver reportes"
+        app:backgroundTint="#F44336"
+        app:srcCompat="@drawable/ic_reportes"
+        app:tint="@android:color/black"
+        app:fabCustomSize="48dp"
+        app:maxImageSize="28dp"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
