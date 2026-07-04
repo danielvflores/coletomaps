@@ -77,33 +77,40 @@ class ReportarFragment : Fragment() {
             return
         }
 
-        val radioButton = binding.root.findViewById<RadioButton>(idSeleccionado)
+        val radioButton = binding.root.findViewById<android.widget.RadioButton>(idSeleccionado)
         val tipoIncidente = radioButton.text.toString()
         val hora = binding.etHora.text.toString().trim()
+        val descripcion = binding.etDescripcion.text.toString().trim()
 
         if (latitudCapturada == 0.0 && longitudCapturada == 0.0) {
             Toast.makeText(requireContext(), "Debes presionar 'Mi ubicación' para georreferenciar el reporte", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Generamos un ID único en Firestore de forma manual
+        // Obtener el ID del usuario logueado en Firebase
+        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
+
         val reporteRef = FirebaseManager.db.collection("reportes").document()
 
         val nuevoReporte = ReporteIncidente(
             id = reporteRef.id,
+            userId = currentUserId,
             tipoIncidente = tipoIncidente,
+            descripcion = descripcion,
             latitud = latitudCapturada,
             longitud = longitudCapturada,
             hora = hora,
-            votosPositivos = 1, // El creador le da el primer voto implícito
+            fechaCreacion = com.google.firebase.Timestamp.now(),
+            votosPositivos = 1,
             votosNegativos = 0,
+            usuariosVotantes = listOf(currentUserId), // El creador ya cuenta como votante inicial
             activo = true
         )
 
         reporteRef.set(nuevoReporte)
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "¡Reporte publicado con éxito!", Toast.LENGTH_SHORT).show()
-                findNavController().navigateUp() // Volver al mapa automáticamente
+                findNavController().navigateUp()
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "Error al guardar reporte: ${e.message}", Toast.LENGTH_LONG).show()
