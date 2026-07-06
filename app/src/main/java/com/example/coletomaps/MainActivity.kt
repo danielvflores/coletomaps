@@ -95,11 +95,9 @@ class MainActivity : AppCompatActivity() {
 
         // Botón verde claro: reportar accidente
         binding.appBarMain.fabReportar.setOnClickListener {
-            Snackbar.make(
-                binding.root,
-                "Aquí se abrirá la pantalla para reportar accidentes",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            if (navController.currentDestination?.id != R.id.nav_reportar) {
+                navController.navigate(R.id.nav_reportar)
+            }
         }
 
         // Botón rojo: ver reportes existentes
