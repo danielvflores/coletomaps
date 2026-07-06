@@ -470,19 +470,26 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
     }
 
     private fun escucharReportesEnTiempoReal() {
-        // Limpiamos los marcadores previos para no duplicar
-        limpiarMarcadoresReportes()
+        // 1. Calculamos el límite de tiempo: 2 horas atrás desde este instante
+        val dosHorasEnSegundos = 2 * 60 * 60
+        val tiempoLimiteExpiracion = com.google.firebase.Timestamp(
+            com.google.firebase.Timestamp.now().seconds - dosHorasEnSegundos, 0
+        )
 
+        // 2. Modificamos la consulta inicial agregando el filtro whereGreaterThan
         com.example.coletomaps.ui.data.FirebaseManager.db.collection("reportes")
             .whereEqualTo("activo", true)
+            .whereGreaterThan("fechaCreacion", tiempoLimiteExpiracion) // Solo lo fresco de las últimas 2 horas
             .addSnapshotListener { snapshots, e ->
-                if (e != null || snapshots == null) return@addSnapshotListener
+                if (e != null || snapshots == null) {
+                    android.util.Log.w("ColetoMaps", "Error al escuchar reportes", e)
+                    return@addSnapshotListener
+                }
 
-                // Cada vez que cambie algo en la base de datos, refrescamos los marcadores
+                // Cada vez que cambie algo en la base de datos fresca, refrescamos los marcadores
                 limpiarMarcadoresReportes()
 
                 for (document in snapshots) {
-                    // Modifica la lectura dentro del bucle 'for (document in snapshots)' en escucharReportesEnTiempoReal:
                     val id = document.getString("id") ?: ""
                     val tipo = document.getString("tipoIncidente") ?: ""
                     val lat = document.getDouble("latitud") ?: 0.0
@@ -491,24 +498,33 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
                     val descripcion = document.getString("descripcion") ?: ""
                     val votosPos = document.getLong("votosPositivos")?.toInt() ?: 0
                     val votosNeg = document.getLong("votosNegativos")?.toInt() ?: 0
-                    // Extraemos la lista de IDs de usuarios que ya votaron
                     val usuariosVotantes = document.get("usuariosVotantes") as? List<String> ?: emptyList()
 
                     val posicion = LatLng(lat, lng)
 
-                    val colorHue = when (tipo.lowercase()) {
-                        "incendio" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_ORANGE
-                        "congestión" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_VIOLET
-                        "corte de calle" -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
-                        else -> com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED
+                    // 3. Definir el ícono y su color de fondo correspondiente
+                    val (recursoIcono, colorFondo) = when (tipo.lowercase()) {
+                        "incendio" -> Pair(R.drawable.ic_incendio, android.graphics.Color.parseColor("#FF6D00")) // Naranja vibrante
+                        "congestión" -> Pair(R.drawable.ic_congestion, android.graphics.Color.parseColor("#2962FF")) // Azul rey
+                        "accidente vehicular" -> Pair(R.drawable.ic_accidente, android.graphics.Color.parseColor("#D50000")) // Rojo alerta
+                        "corte de calle" -> Pair(R.drawable.ic_corte, android.graphics.Color.parseColor("#00C853")) // Verde oscuro / o Gris oscuro "#37474F"
+                        else -> Pair(R.drawable.ic_accidente, android.graphics.Color.RED)
                     }
+
+// 4. Transformar mandando el contexto, el ícono y el color elegido
+                    val miIconoPersonalizado = bitmapDescriptorFromVector(requireContext(), recursoIcono, colorFondo)
 
                     val markerOptions = MarkerOptions()
                         .position(posicion)
                         .title(tipo.uppercase())
-                        // Agregamos la descripción al snippet del marcador para que se visualice al tocarlo
                         .snippet(if (descripcion.isNotEmpty()) "$descripcion\nHora: $hora" else "Hora: $hora")
-                        .icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(colorHue))
+
+                    // 5. Asignar el ícono pro si se renderizó bien, o dejar el pin de siempre si falla
+                    if (miIconoPersonalizado != null) {
+                        markerOptions.icon(miIconoPersonalizado)
+                    } else {
+                        markerOptions.icon(com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED))
+                    }
 
                     val marker = mMap?.addMarker(markerOptions)
                     if (marker != null) {
@@ -517,6 +533,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
                     }
                 }
             }
+
     }
 
     private fun limpiarMarcadoresReportes() {
@@ -532,68 +549,88 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         docRef.get().addOnSuccessListener { document ->
             if (!document.exists()) return@addOnSuccessListener
 
+            // 1. Extraer toda la data del reporte
             val latReporte = document.getDouble("latitud") ?: 0.0
             val lngReporte = document.getDouble("longitud") ?: 0.0
             val usuariosVotantes = document.get("usuariosVotantes") as? List<String> ?: emptyList()
             val descripcion = document.getString("descripcion") ?: ""
+            val hora = document.getString("hora") ?: ""
 
-            // 1. VALIDACIÓN DE VOTO ÚNICO
-            if (usuariosVotantes.contains(currentUserId)) {
-                android.widget.Toast.makeText(requireContext(), "Ya emitiste tu voto para este reporte", android.widget.Toast.LENGTH_SHORT).show()
-                return@addOnSuccessListener
+            // 2. Inflar la Bottom Sheet elegante
+            val bottomSheetDialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
+            val vistaLayout = layoutInflater.inflate(R.layout.dialog_detalle_reporte, null)
+            bottomSheetDialog.setContentView(vistaLayout)
+
+            // Vincular vistas de la tarjeta
+            val tvTipo = vistaLayout.findViewById<android.widget.TextView>(R.id.tvTvTipo)
+            val tvHora = vistaLayout.findViewById<android.widget.TextView>(R.id.tvTvHora)
+            val tvDescripcion = vistaLayout.findViewById<android.widget.TextView>(R.id.tvTvDescripcion)
+            val tvAlerta = vistaLayout.findViewById<android.widget.TextView>(R.id.tvAlertaRestriccion)
+            val btnSi = vistaLayout.findViewById<android.widget.Button>(R.id.btnVotoSi)
+            val btnNo = vistaLayout.findViewById<android.widget.Button>(R.id.btnVotoNo)
+
+            // Setear datos informativos obligatorios (Siempre visibles)
+            tvTipo.text = tipoIncidente.uppercase()
+            tvHora.text = "Reportado a las $hora"
+            if (descripcion.isNotEmpty()) {
+                tvDescripcion.text = descripcion
             }
 
-            // 2. VALIDACIÓN DE GEOFENCING (200 METROS)
-            // Obtenemos la última ubicación conocida del usuario mapeada en tu fragmento (mLastLocation o similar)
-            // Si no tienes la variable global de ubicación, puedes usar mMap?.myLocation si está habilitado
-            val miUbicacionActual = mMap?.myLocation
+            // 3. Evaluar restricciones lógicas en segundo plano sin romper la UX
+            var puedeVotar = true
+            var motivoBloqueo = ""
 
-            if (miUbicacionActual != null) {
+            // Evaluar si ya votó
+            if (usuariosVotantes.contains(currentUserId)) {
+                puedeVotar = false
+                motivoBloqueo = "🔒 Ya emitiste tu voto para este incidente."
+            }
+
+            // Evaluar distancia geográfica (200 metros)
+            val miUbicacionActual = mMap?.myLocation
+            if (miUbicacionActual != null && puedeVotar) {
                 val resultadoDistancia = FloatArray(1)
                 android.location.Location.distanceBetween(
                     miUbicacionActual.latitude, miUbicacionActual.longitude,
                     latReporte, lngReporte,
                     resultadoDistancia
                 )
-                val distanciaMetros = resultadoDistancia[0]
-
-                if (distanciaMetros > 200f) {
-                    android.widget.Toast.makeText(
-                        requireContext(),
-                        "Estás muy lejos (${distanciaMetros.toInt()}m). Debes estar a menos de 200 metros para validar.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                    return@addOnSuccessListener
+                if (resultadoDistancia[0] > 200f) {
+                    puedeVotar = false
+                    motivoBloqueo = "🔒 Estás muy lejos (${resultadoDistancia[0].toInt()}m) para validar este reporte."
                 }
+            } else if (miUbicacionActual == null && puedeVotar) {
+                puedeVotar = false
+                motivoBloqueo = "🔒 Esperando señal GPS para habilitar votación."
+            }
+
+            // 4. Aplicar los cambios visuales de restricción
+            if (!puedeVotar) {
+                tvAlerta.text = motivoBloqueo
+                tvAlerta.visibility = android.view.View.VISIBLE
+
+                // Apagamos los botones visualmente cambiándolos a gris y quitando clics
+                btnSi.isEnabled = false
+                btnSi.alpha = 0.5f
+                btnNo.isEnabled = false
+                btnNo.alpha = 0.5f
             } else {
-                android.widget.Toast.makeText(requireContext(), "No se pudo verificar tu ubicación actual GPS", android.widget.Toast.LENGTH_SHORT).show()
-                return@addOnSuccessListener
+                // Si todo está ok, asignamos las acciones de transacciones de Firestore normales
+                btnSi.setOnClickListener {
+                    actualizarVotosReporte(reporteId, currentUserId, esPositivo = true)
+                    bottomSheetDialog.dismiss()
+                }
+                btnNo.setOnClickListener {
+                    actualizarVotosReporte(reporteId, currentUserId, esPositivo = false)
+                    bottomSheetDialog.dismiss()
+                }
             }
 
-            // 3. MOSTRAR DIÁLOGO SI PASA LAS VALIDACIONES
-            val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            builder.setTitle("Validación Comunitaria")
+            // Mostrar la tarjeta integrada en pantalla
+            bottomSheetDialog.show()
 
-            val mensajeMostrar = if (descripcion.isNotEmpty()) {
-                "Detalle: $descripcion\n\n¿Sigue el $tipoIncidente activo en este lugar?"
-            } else {
-                "¿Sigue el $tipoIncidente activo en este lugar?"
-            }
-            builder.setMessage(mensajeMostrar)
-
-            builder.setPositiveButton("SÍ, SIGUE") { dialog, _ ->
-                actualizarVotosReporte(reporteId, currentUserId, esPositivo = true)
-                dialog.dismiss()
-            }
-
-            builder.setNegativeButton("NO, YA PASÓ") { dialog, _ ->
-                actualizarVotosReporte(reporteId, currentUserId, esPositivo = false)
-                dialog.dismiss()
-            }
-
-            builder.create().show()
         }.addOnFailureListener { e ->
-            android.widget.Toast.makeText(requireContext(), "Error al conectar con Firestore: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(requireContext(), "Error al cargar detalle: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -628,5 +665,51 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnPolylineClickLis
         }.addOnFailureListener { e ->
             android.widget.Toast.makeText(requireContext(), "Error al procesar el voto: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun bitmapDescriptorFromVector(
+        context: android.content.Context,
+        vectorResId: Int,
+        backgroundColor: Int
+    ): com.google.android.gms.maps.model.BitmapDescriptor? {
+
+        // 1. Obtener el ícono vectorial y teñirlo de BLANCO para que contraste con el fondo
+        val vectorDrawable = androidx.core.content.ContextCompat.getDrawable(context, vectorResId) ?: return null
+        val iconoBlanco = vectorDrawable.mutate()
+        androidx.core.graphics.drawable.DrawableCompat.setTint(iconoBlanco, android.graphics.Color.WHITE)
+
+        // 2. Definir el tamaño del marcador (puedes ajustar estos números para agrandar/achicar)
+        val size = 90
+        val padding = 20 // Espacio entre el borde del círculo y el ícono interno
+
+        // 3. Crear el mapa de bits y el lienzo para dibujar
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+
+        // 4. Dibujar el círculo de fondo con el color que le mandemos
+        val paint = android.graphics.Paint().apply {
+            color = backgroundColor
+            isAntiAlias = true
+            style = android.graphics.Paint.Style.FILL
+        }
+
+        // Dibujamos el círculo justo al centro
+        val radio = size / 2f
+        canvas.drawCircle(radio, radio, radio, paint)
+
+        // 5. Dibujar una pequeña sombra o borde blanco exterior para que resalte más en el mapa
+        val strokePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            isAntiAlias = true
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 5f
+        }
+        canvas.drawCircle(radio, radio, radio - 2.5f, strokePaint)
+
+        // 6. Posicionar y dibujar el ícono blanco al centro del círculo
+        iconoBlanco.setBounds(padding, padding, size - padding, size - padding)
+        iconoBlanco.draw(canvas)
+
+        return com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
     }
 }

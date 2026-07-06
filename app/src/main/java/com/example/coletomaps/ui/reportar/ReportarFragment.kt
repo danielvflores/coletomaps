@@ -16,6 +16,9 @@ import com.google.android.gms.location.LocationServices
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
+import android.util.Log
 
 class ReportarFragment : Fragment() {
 
@@ -87,23 +90,79 @@ class ReportarFragment : Fragment() {
             return
         }
 
-        // Obtener el ID del usuario logueado en Firebase
-        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
+        if (hora.isEmpty()) {
+            Toast.makeText(requireContext(), "Por favor ingresa la hora del incidente", Toast.LENGTH_SHORT).show()
+            return
+        }
 
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: "anonimo"
+
+        // --- LOGICA DE COOLDOWN (TIEMPO Y DISTANCIA) ---
+        // Calculamos el límite de tiempo: 5 minutos atrás desde ahora
+        val cincoMinutosEnSegundos = 5 * 60
+        val tiempoLimite = Timestamp(Timestamp.now().seconds - cincoMinutosEnSegundos, 0)
+
+        // Consultamos si este usuario ya subió reportes en los últimos 5 minutos
+        FirebaseManager.db.collection("reportes")
+            .whereEqualTo("userId", currentUserId)
+            .whereGreaterThan("fechaCreacion", tiempoLimite)
+            .get()
+            .addOnSuccessListener { documentos ->
+                var antiSpamBloqueado = false
+
+                for (doc in documentos) {
+                    val latExistente = doc.getDouble("latitud") ?: 0.0
+                    val lngExistente = doc.getDouble("longitud") ?: 0.0
+
+                    // Calcular distancia matemática entre el intento actual y el reporte viejo
+                    val resultadoDistancia = FloatArray(1)
+                    android.location.Location.distanceBetween(
+                        latitudCapturada, longitudCapturada,
+                        latExistente, lngExistente,
+                        resultadoDistancia
+                    )
+                    val distanciaMetros = resultadoDistancia[0]
+
+                    // Si está a menos de 100 metros en el mismo rango de tiempo, se activa el Cooldown
+                    if (distanciaMetros < 100f) {
+                        antiSpamBloqueado = true
+                        break
+                    }
+                }
+
+                if (antiSpamBloqueado) {
+                    Toast.makeText(
+                        requireContext(),
+                        "🚨 Cooldown activo: Ya creaste un reporte muy cerca en los últimos 5 minutos.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    // Si pasa el filtro de Cooldown, procedemos a guardar el reporte normalmente
+                    ejecutarInsercionReporte(currentUserId, tipoIncidente, descripcion, hora)
+                }
+            }
+            .addOnFailureListener { e ->
+                // Si falla la consulta de seguridad, por precaución permitimos el flujo pero avisamos
+                Log.e("ColetoMaps", "Error validando cooldown, procediendo igual: ${e.message}")
+                ejecutarInsercionReporte(currentUserId, tipoIncidente, descripcion, hora)
+            }
+    }
+
+    private fun ejecutarInsercionReporte(userId: String, tipo: String, desc: String, hora: String) {
         val reporteRef = FirebaseManager.db.collection("reportes").document()
 
         val nuevoReporte = ReporteIncidente(
             id = reporteRef.id,
-            userId = currentUserId,
-            tipoIncidente = tipoIncidente,
-            descripcion = descripcion,
+            userId = userId,
+            tipoIncidente = tipo,
+            descripcion = desc,
             latitud = latitudCapturada,
             longitud = longitudCapturada,
             hora = hora,
-            fechaCreacion = com.google.firebase.Timestamp.now(),
+            fechaCreacion = Timestamp.now(),
             votosPositivos = 1,
             votosNegativos = 0,
-            usuariosVotantes = listOf(currentUserId), // El creador ya cuenta como votante inicial
+            usuariosVotantes = listOf(userId),
             activo = true
         )
 

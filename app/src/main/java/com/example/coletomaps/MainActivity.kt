@@ -117,7 +117,16 @@ class MainActivity : AppCompatActivity() {
                 binding.appBarMain.fabReportar.visibility = View.GONE
                 binding.appBarMain.fabReportes.visibility = View.GONE
                 drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+            } else if (destination.id == R.id.nav_reportar) {
+                // Al entrar al formulario de reportes, dejamos la Toolbar pero ocultamos los 3 FABs
+                supportActionBar?.show()
+                binding.appBarMain.toolbar.visibility = View.VISIBLE
+                binding.appBarMain.fab.visibility = View.GONE
+                binding.appBarMain.fabReportar.visibility = View.GONE
+                binding.appBarMain.fabReportes.visibility = View.GONE
+                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
             } else {
+                // Para todas las demás pantallas (como el Home/Mapa), mostramos todo
                 supportActionBar?.show()
                 binding.appBarMain.toolbar.visibility = View.VISIBLE
                 binding.appBarMain.fab.visibility = View.VISIBLE

@@ -1,147 +1,154 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
+    android:fillViewport="true"
     android:background="#FFFFFF">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Tipo Incidente"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#000000"
-        android:layout_marginBottom="8dp"/>
-
-    <!-- RadioGroup para los Radio Buttons indicados en imagen.jpg -->
-    <RadioGroup
-        android:id="@+id/rgTipoIncidente"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="16dp">
+        android:padding="24dp">
 
-        <RadioButton
-            android:id="@+id/rbIncendio"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="incendio"
-            android:textColor="#000000" />
+            android:text="Tipo Incidente"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="8dp"/>
 
-        <RadioButton
-            android:id="@+id/rbCongestion"
+        <RadioGroup
+            android:id="@+id/rgTipoIncidente"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <RadioButton
+                android:id="@+id/rbIncendio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="incendio"
+                android:textColor="#000000" />
+
+            <RadioButton
+                android:id="@+id/rbCongestion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="congestión"
+                android:textColor="#000000" />
+
+            <RadioButton
+                android:id="@+id/rbAccidente"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="accidente vehicular"
+                android:textColor="#000000" />
+
+            <RadioButton
+                android:id="@+id/rbCorte"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="corte de calle"
+                android:textColor="#000000" />
+        </RadioGroup>
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="congestión"
-            android:textColor="#000000" />
+            android:text="Ubicación"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="8dp"/>
 
-        <RadioButton
-            android:id="@+id/rbAccidente"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <EditText
+                android:id="@+id/etUbicacion"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Ubicación del usuario"
+                android:enabled="false"
+                android:textColor="#000000"/>
+
+            <Button
+                android:id="@+id/btnMiUbicacion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:backgroundTint="#8BC34A"
+                android:text="Mi ubicación"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="accidente vehicular"
-            android:textColor="#000000" />
-
-        <RadioButton
-            android:id="@+id/rbCorte"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="corte de calle"
-            android:textColor="#000000" />
-    </RadioGroup>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Ubicación"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#000000"
-        android:layout_marginBottom="8dp"/>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
+            android:text="Hora"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="8dp"/>
 
         <EditText
-            android:id="@+id/etUbicacion"
-            android:layout_width="0dp"
+            android:id="@+id/etHora"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="Ubicación del usuario"
-            android:enabled="false"
-            android:textColor="#000000"/>
+            android:hint="hh:mm"
+            android:textColor="#000000"
+            android:layout_marginBottom="32dp"/>
 
-        <Button
-            android:id="@+id/btnMiUbicacion"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:backgroundTint="#8BC34A"
-            android:text="Mi ubicación"
-            android:textColor="#FFFFFF"
-            android:layout_marginStart="8dp"/>
+            android:text="Descripción del incidente"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/etDescripcion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Ej: Choque por alcance en Azolas, pista derecha bloqueada"
+            android:textColor="#000000"
+            android:maxLength="150"
+            android:layout_marginBottom="24dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp">
+
+            <Button
+                android:id="@+id/btnComentar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:backgroundTint="#8BC34A"
+                android:text="Comentar"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="16dp"/>
+
+            <Button
+                android:id="@+id/btnCancelarReporte"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:backgroundTint="#F44336"
+                android:text="Cancelar"
+                android:textColor="#FFFFFF"/>
+        </LinearLayout>
+
     </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hora"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#000000"
-        android:layout_marginBottom="8dp"/>
-
-    <EditText
-        android:id="@+id/etHora"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="hh:mm"
-        android:textColor="#000000"
-        android:layout_marginBottom="32dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Descripción del incidente"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#000000"
-        android:layout_marginBottom="8dp"/>
-
-    <EditText
-        android:id="@+id/etDescripcion"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Ej: Choque por alcance en Azolas, pista derecha bloqueada"
-        android:textColor="#000000"
-        android:maxLength="150"
-        android:layout_marginBottom="24dp"/>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/btnComentar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="#8BC34A"
-            android:text="Comentar"
-            android:textColor="#FFFFFF"
-            android:layout_marginEnd="16dp"/>
-
-        <Button
-            android:id="@+id/btnCancelarReporte"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="#F44336"
-            android:text="Cancelar"
-            android:textColor="#FFFFFF"/>
-    </LinearLayout>
-</LinearLayout>
+</ScrollView>
