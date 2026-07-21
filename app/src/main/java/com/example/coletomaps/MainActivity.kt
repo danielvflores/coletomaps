@@ -16,12 +16,27 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.coletomaps.databinding.ActivityMainBinding
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return when {
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+            else -> false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,8 +82,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+
         binding.root.post {
-            if (!com.example.coletomaps.ui.data.FirebaseManager.isUserLoggedIn()) {
+            if (!isNetworkAvailable()) {
+                // Si no hay internet, saltamos directamente al Home para ver el mapa offline
+                Log.d("ColetoMaps", "Sin internet. Modo Offline activado.")
+                if (navController.currentDestination?.id != R.id.nav_home) {
+                    navController.navigate(R.id.nav_home)
+                }
+            } else if (!com.example.coletomaps.ui.data.FirebaseManager.isUserLoggedIn()) {
+                // Si hay internet pero no está logueado, va a login
                 Log.d("ColetoMapsFirebase", "No hay usuario activo. Redirigiendo...")
                 if (navController.currentDestination?.id != R.id.nav_login) {
                     navController.navigate(R.id.nav_login)
@@ -93,20 +116,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+
         // Botón verde claro: reportar accidente
         binding.appBarMain.fabReportar.setOnClickListener {
-            if (navController.currentDestination?.id != R.id.nav_reportar) {
-                navController.navigate(R.id.nav_reportar)
+
+            if (!isNetworkAvailable()) {
+                Snackbar.make(binding.root, "No tienes conexión a internet para reportar.", Snackbar.LENGTH_LONG).show()
+            } else {
+                if (navController.currentDestination?.id != R.id.nav_reportar) {
+                    navController.navigate(R.id.nav_reportar)
+                }
             }
         }
 
         // Botón rojo: ver reportes existentes
         binding.appBarMain.fabReportes.setOnClickListener {
-            Snackbar.make(
-                binding.root,
-                "Aquí se mostrarán los reportes en el mapa",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            if (!isNetworkAvailable()) {
+                Snackbar.make(binding.root, "Mostrando reportes guardados localmente.", Snackbar.LENGTH_SHORT).show()
+                // Aquí puedes cargar pines locales si habilitaste la persistencia de Firebase
+            } else {
+                Snackbar.make(binding.root, "Aquí se mostrarán los reportes en el mapa", Snackbar.LENGTH_SHORT).show()
+            }
         }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
