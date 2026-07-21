@@ -6,8 +6,7 @@
     <string name="nav_header_subtitle">coleto.maps@android.com</string>
     <string name="nav_header_desc">Navigation header</string>
     <string name="action_settings">Settings</string>
-
-    <string name="menu_home">Home</string>
+    <string name="menu_home">Mapa</string>
+    <string name="menu_slideshow">Mis Reportes</string>
     <string name="menu_logout">Logout</string>
-    <string name="menu_slideshow">Slideshow</string>
 </resources>

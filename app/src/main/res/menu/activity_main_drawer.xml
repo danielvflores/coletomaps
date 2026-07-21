@@ -4,15 +4,16 @@
     tools:showIn="navigation_view">
 
     <group android:checkableBehavior="single">
+        <!-- Cambiar en activity_main_drawer.xml -->
         <item
             android:id="@+id/nav_home"
-            android:icon="@drawable/ic_ubicacion_icon"
-            android:title="@string/menu_home" />
+            android:icon="@drawable/ic_menu_camera"
+            android:title="Mapa" /> <!-- Cambiado de Home a Mapa -->
 
         <item
             android:id="@+id/nav_slideshow"
             android:icon="@drawable/ic_menu_slideshow"
-            android:title="@string/menu_slideshow" />
+            android:title="Mis Reportes" /> <!-- Cambiado de Slideshow a Reportes -->
         <!--
         <item
             android:id="@+id/nav_map"
