@@ -4,39 +4,41 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.ViewModelProvider
-import com.example.coletomaps.databinding.FragmentSlideshowBinding
+import androidx.viewpager2.widget.ViewPager2
+import com.example.coletomaps.R
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
 
 class SlideshowFragment : Fragment() {
 
-    private var _binding: FragmentSlideshowBinding? = null
-
-    // This property is only valid between onCreateView and
-    // onDestroyView.
-    private val binding get() = _binding!!
+    // 1. Asegúrate de tener estas dos variables declaradas aquí arriba
+    private lateinit var tabLayout: TabLayout
+    private lateinit var viewPager: ViewPager2
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        val slideshowViewModel =
-            ViewModelProvider(this).get(SlideshowViewModel::class.java)
+    ): View? {
+        // 2. Aquí cambiamos a tu nuevo nombre de archivo XML: fragment_historial_reportes
+        val vista = inflater.inflate(R.layout.fragment_historial_reportes, container, false)
 
-        _binding = FragmentSlideshowBinding.inflate(inflater, container, false)
-        val root: View = binding.root
+        // 3. Al estar declaradas arriba, ya no te darán error aquí
+        tabLayout = vista.findViewById(R.id.tabLayoutReportes)
+        viewPager = vista.findViewById(R.id.viewPagerReportes)
 
-        val textView: TextView = binding.textSlideshow
-        slideshowViewModel.text.observe(viewLifecycleOwner) {
-            textView.text = it
-        }
-        return root
-    }
+        // 4. Configuramos el adaptador deslizable
+        val adapter = ReportesPagerAdapter(this)
+        viewPager.adapter = adapter
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+        // 5. Vinculamos el TabLayout con el ViewPager2
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> "Todos los reportes"
+                else -> "Mis reportes"
+            }
+        }.attach()
+
+        return vista
     }
 }

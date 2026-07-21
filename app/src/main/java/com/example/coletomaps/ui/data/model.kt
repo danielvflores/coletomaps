@@ -14,15 +14,16 @@ data class LineaColectivo(
 )
 data class ReporteIncidente(
     val id: String = "",
-    val userId: String = "",           // ID del usuario que creó el reporte
-    val tipoIncidente: String = "",    // "incendio", "congestión", "accidente vehicular", "corte"
-    val descripcion: String = "",      // Breve descripción añadida por el usuario
+    val userId: String = "",
+    val tipoIncidente: String = "",
+    val descripcion: String = "",
     val latitud: Double = 0.0,
     val longitud: Double = 0.0,
-    val hora: String = "",             // hh:mm para visual rápida
-    val fechaCreacion: Timestamp = Timestamp.now(), // Para calcular la expiración exacta
+    val calle: String = "",            // 👈 NUEVO CAMPO: Ej: "Av. Diego Portales" o "Calle 18 de Septiembre"
+    val hora: String = "",
+    val fechaCreacion: Timestamp = Timestamp.now(),
     val votosPositivos: Int = 0,
     val votosNegativos: Int = 0,
-    val usuariosVotantes: List<String> = emptyList(), // Lista de IDs de usuarios que ya votaron
+    val usuariosVotantes: List<String> = emptyList(),
     val activo: Boolean = true
 )

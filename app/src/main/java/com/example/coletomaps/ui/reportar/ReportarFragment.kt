@@ -19,6 +19,8 @@ import java.util.Locale
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import android.util.Log
+import android.location.Geocoder
+import java.io.IOException
 
 class ReportarFragment : Fragment() {
 
@@ -151,6 +153,10 @@ class ReportarFragment : Fragment() {
     private fun ejecutarInsercionReporte(userId: String, tipo: String, desc: String, hora: String) {
         val reporteRef = FirebaseManager.db.collection("reportes").document()
 
+        // 1. Obtenemos el nombre de la calle usando el Geocoder
+        val calleDetectada = obtenerNombreCalle(latitudCapturada, longitudCapturada)
+
+        // 2. Creamos el reporte incluyendo la calle detectada
         val nuevoReporte = ReporteIncidente(
             id = reporteRef.id,
             userId = userId,
@@ -158,6 +164,7 @@ class ReportarFragment : Fragment() {
             descripcion = desc,
             latitud = latitudCapturada,
             longitud = longitudCapturada,
+            calle = calleDetectada, // 👈 Pasamos el nombre de la calle aquí
             hora = hora,
             fechaCreacion = Timestamp.now(),
             votosPositivos = 1,
@@ -174,6 +181,27 @@ class ReportarFragment : Fragment() {
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "Error al guardar reporte: ${e.message}", Toast.LENGTH_LONG).show()
             }
+    }
+
+    private fun obtenerNombreCalle(latitud: Double, longitud: Double): String {
+        val geocoder = Geocoder(requireContext(), Locale.getDefault())
+        return try {
+            // Le pedimos al Geocoder que busque solo 1 dirección para esas coordenadas
+            val direcciones = geocoder.getFromLocation(latitud, longitud, 1)
+            if (!direcciones.isNullOrEmpty()) {
+                val direccion = direcciones[0]
+
+                // Usamos thoroName (nombre de la calle). Si es nulo, intentamos con la dirección completa simplificada
+                val nombreCalle = direccion.thoroughfare ?: direccion.getAddressLine(0)?.split(",")?.get(0)
+
+                nombreCalle ?: "Ubicación desconocida"
+            } else {
+                "Ubicación desconocida"
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            "Ubicación aproximada" // Retorno de respaldo por si el teléfono no tiene internet en ese microsegundo
+        }
     }
 
     override fun onDestroyView() {
